@@ -1,4 +1,5 @@
 require('dotenv').config();
+const http = require('http');
 const schedule = require('node-schedule');
 const config = require('./config');
 const mailService = require('./services/mail.service');
@@ -7,14 +8,18 @@ const url = process.env.HEALTH_CHECK_URL;
 
 // Function to check URL
 function checkUrl() {
-  fetch(url)
+  return fetch(url)
     .then((response) => response.json())
     .then((data) => {
       if (data.status !== 'success' || data.status_code !== 200) {
-        console.log('URL check failed. Sending email...');
+        const msg = 'URL check failed. Sending email...';
+        console.log(msg);
         sendEmailsToAdmins();
+        return msg;
       } else {
-        console.log('URL check passed.');
+        const msg = 'URL check passed.';
+        console.log(msg);
+        return msg;
       }
     })
     .catch((error) => {
@@ -34,3 +39,22 @@ schedule.scheduleJob('*/30 * * * *', () => {
   console.log('Checking URL:', url);
   checkUrl();
 });
+
+const server = http.createServer(async (req, res) => {
+  if (req.url === '/check-url' && req.method === 'GET') {
+    const resp = await checkUrl();
+    res.statusCode = 200;
+    res.setHeader('Content-Type', 'text/plain');
+    res.end('checkUrl function triggered: ' + resp + '\n');
+  } else {
+    res.statusCode = 404;
+    res.end('Not Found\n');
+  }
+});
+
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+  console.log(`Server running on port: ${PORT}`);
+});
+
+console.log('App started...');
